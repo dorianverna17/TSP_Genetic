@@ -15,6 +15,6 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "sequential_naive") == 0) {
         TSP_sequential_naive(c, 0);
     } else if (strcmp(argv[1], "sequential_genetic") == 0) {
-        TSP_sequential_genetic(c, 0, 1000000);
+        TSP_sequential_genetic(c, 0, 1000, 1000);
     }
 }

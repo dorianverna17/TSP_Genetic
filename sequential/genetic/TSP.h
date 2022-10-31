@@ -8,45 +8,22 @@ typedef struct {
     int fitness;
     int *chromosomes;
     int position;
+    int random_pos1;
+    int random_pos2;
 } individual;
 
-/*
- * Rotate the position of the cities using the
- * index given as second parameter
- */
-void generate_custom_chromosomes(int *chromosomes, int position,
-    int start, int size) {
-
-    if (position == size - 2) {
-        for (int i = size - 2; i >= 0; i--) {
-            chromosomes[size - 1 - i] = i;
-        }
-        chromosomes[0] = start;
-        return;
-    }
-
-    chromosomes[0] = start;
-
-    for (int i = 1; i <= position; i++) {
-        chromosomes[i] = size - 2 - position + i;
-    }
-    for (int i = position + 1; i < size - 1; i++) {
-        chromosomes[i] = i - position;
-    }
-
-    chromosomes[size - 1] = start;
-}
 
 /*
  * Function that computes the fitness of each individual
  * of a certain generation at some point in time.
  * Fitness is the cost of the journey between these cities
  */
-void compute_generation_fitness(individual **generation, cities *c, int start) {
+void compute_generation_fitness(individual **generation, cities *c,
+    int start, int population_size) {
     int cost;
     int *chromosomes;
 
-    for (int i = 0; i < c->size; i++) {
+    for (int i = 0; i < population_size; i++) {
         cost = 0;
         chromosomes = generation[i]->chromosomes;
         for (int j = 0; j < c->size; j++) {
@@ -110,13 +87,30 @@ void print_generation(individual **gen, cities *c) {
     printf("\n");
 }
 
-void generate_random_chromosomes(int *chromosomes, cities *c) {
+void generate_random_chromosomes(int *chromosomes, cities *c, int starting_point) {
+    chromosomes[0] = starting_point;
     for (int i = 1; i < c->size; i++) {
         int city = rand() % c->size;
 
         while (check_chromosome(city, chromosomes, i))
             city = rand() % c->size;
         chromosomes[i] = city;
+    }
+    chromosomes[c->size] = starting_point;
+}
+
+/*
+ * Function that generates two random numbers for
+ * mutation swapping
+ */
+void generate_random_numbers(individual **gen, int size, int population_size) {
+    for (int i = 0; i < population_size; i++) {
+        gen[i]->random_pos1 = 1 + rand() % (size - 1);
+        gen[i]->random_pos2 = 1 + rand() % (size - 1);
+    
+        while (gen[i]->random_pos1 == gen[i]->random_pos2) {
+            gen[i]->random_pos2 = 1 + rand() % (size - 1);
+        }
     }
 }
 
@@ -126,56 +120,40 @@ void generate_random_chromosomes(int *chromosomes, cities *c) {
  * the first 30% and then crossover the first 30%
  */
 void mutate_generation(individual **current_generation,
-    individual **next_generation, cities *c, int start, int gen_no) {
+    individual **next_generation, cities *c, int start, int gen_no, int population_size) {
     int i, j, aux;
     int current_index;
 
-    /* keep the first 40% */
-    int count_best = (c->size * 4) / 10;
+    /* keep the first 20% */
+    int count_best = (population_size * 2) / 10;
     for (i = 0; i < count_best; i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
         next_generation[i]->fitness = 0;
     }
 
-
     current_index = count_best;
 
-    /* 
-     * mutate the first 30% - swap the position of each
-     * two consecutive chromosomes of an individual
-     */
-    int count = (c->size * 2) / 10;
-    for (i = 0; i < count; i++) {
-        memcpy(next_generation[current_index]->chromosomes,
-            current_generation[current_index]->chromosomes, (c->size + 1) * sizeof(int));
-        next_generation[current_index]->fitness = 1;
-        for (j = 1; j < c->size - 1; j+=2) {
-            aux = next_generation[current_index]->chromosomes[j];
-            next_generation[current_index]->chromosomes[j] =
-                next_generation[current_index]->chromosomes[j + 1];
-            next_generation[current_index]->chromosomes[j + 1] = aux;
-        }
-        current_index += 1;
+    // let's mutate the rest of them
+    generate_random_numbers(current_generation, c->size, population_size);
+    for (i = current_index; i < current_index + count_best; i++) {
+        memcpy(next_generation[i]->chromosomes,
+            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i]->random_pos1 =
+            current_generation[i - current_index]->random_pos1;
+        next_generation[i]->random_pos2 =
+            current_generation[i - current_index]->random_pos2;
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
     }
 
-    /* the rest of them are being mutated this way */
-    for (i = 0; i < count; i++) {
-        memcpy(next_generation[current_index]->chromosomes,
-            current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
-        for (int j = 1; j < c->size - 2; j+=3) {
-            aux = next_generation[current_index]->chromosomes[j];
-            next_generation[current_index]->chromosomes[j] =
-                next_generation[current_index]->chromosomes[j + 2];
-            next_generation[current_index]->chromosomes[j + 2] = aux;
-        }
-        next_generation[current_index]->fitness = 3;
-        current_index += 1;
-    }
+    current_index = i;
 
     /* the remaining ones are being generated randomly */
-    for (i = current_index; i < c->size; i++) {
-        generate_random_chromosomes(next_generation[i]->chromosomes, c);
+    for (i = current_index; i < population_size; i++) {
+        generate_random_chromosomes(next_generation[i]->chromosomes, c, 0);
         next_generation[i]->fitness = 4;
     }
 
@@ -184,25 +162,24 @@ void mutate_generation(individual **current_generation,
 /*
  * Cities are taken as genes
  * Fitness score is the path length of all the cities mentioned
- * 
  */
-void TSP_sequential_genetic(cities *c, int starting_point, int generations_no) {
-    srand(time(NULL));
+void TSP_sequential_genetic(cities *c, int starting_point,
+    int generations_no, int population_size) {
+    // srand(time(NULL));
  
     /* Step 1: Creating initial population */
 
-    individual **current_generation = malloc(c->size * sizeof(individual*));
-    individual **next_generation = malloc(c->size * sizeof(individual*));
+    individual **current_generation = malloc(population_size * sizeof(individual*));
+    individual **next_generation = malloc(population_size * sizeof(individual*));
     individual **auxiliary;
 
-    for (int i = 0; i < c->size; i++) {
+    for (int i = 0; i < population_size; i++) {
         current_generation[i] = malloc(sizeof(individual));
         current_generation[i]->fitness = 0;
         current_generation[i]->position = i;
         current_generation[i]->chromosomes = malloc((c->size + 1) * sizeof(int));
 
-        generate_custom_chromosomes(current_generation[i]->chromosomes,
-            i, starting_point, c->size + 1);
+        generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
 
         next_generation[i] = malloc(sizeof(individual));
         next_generation[i]->fitness = 0;
@@ -220,17 +197,14 @@ void TSP_sequential_genetic(cities *c, int starting_point, int generations_no) {
      */
     for (int i = 0; i < generations_no; i++) {
         /* Step 2: Calculating fitness */
-        compute_generation_fitness(current_generation, c, starting_point);
+        compute_generation_fitness(current_generation, c, starting_point, population_size);
         /* Step 3: Sort in order of fitnesses */
-        qsort(current_generation, c->size,
+        qsort(current_generation, population_size,
             sizeof(individual*), compare_individuals);
 
-        // print_generation(current_generation, c);
-
         /* Step 4: Selecting the best genes and mutating */
-        mutate_generation(current_generation, next_generation, c, starting_point, i);
-        
-        // print_generation(next_generation, c);
+        mutate_generation(current_generation, next_generation, c,
+            starting_point, i, population_size);
 
         /* Step 5: Switch to new generation */
         auxiliary = current_generation;
@@ -238,8 +212,8 @@ void TSP_sequential_genetic(cities *c, int starting_point, int generations_no) {
         next_generation = auxiliary;
     }
 
-    compute_generation_fitness(current_generation, c, starting_point);
-    qsort(current_generation, c->size,
+    compute_generation_fitness(current_generation, c, starting_point, population_size);
+    qsort(current_generation, population_size,
         sizeof(individual*), compare_individuals);
 
     print_result_individual(current_generation, c);
