@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 typedef struct {
     int fitness;
@@ -10,6 +11,8 @@ typedef struct {
     int position;
     int random_pos1;
     int random_pos2;
+    int random_pos3;
+    int random_pos4;
 } individual;
 
 
@@ -111,7 +114,39 @@ void generate_random_numbers(individual **gen, int size, int population_size) {
         while (gen[i]->random_pos1 == gen[i]->random_pos2) {
             gen[i]->random_pos2 = 1 + rand() % (size - 1);
         }
+
+        gen[i]->random_pos3 = 1 + rand() % (size - 1);
+
+        gen[i]->random_pos4 = 1 + rand() % (size - 1);
+        while (gen[i]->random_pos4 == gen[i]->random_pos3) {
+            gen[i]->random_pos4 = 1 + rand() % (size - 1);
+        }
     }
+}
+
+/*
+ * Function that constructs an individual by choosing the
+ * minimum distance from each city when that particular
+ * city is visited by the travelling salesman
+ */
+void minimum_chromosome_road(int *chromosomes, int start, cities *c) {
+    int min, i, j, pos, city = start;
+
+    chromosomes[0] = start;
+    for (i = 0; i < c->size - 1; i++) {
+        min = INT_MAX;
+        for (j = 0; j < c->size; j++) {
+            if (j != start && j != city &&
+                c->roads[city][j] < min &&
+                !check_chromosome(j, chromosomes, i)) {
+                    min = c->roads[city][j];
+                    pos = j;
+            }
+        }
+        chromosomes[i + 1] = pos;
+        city = pos;
+    }
+    chromosomes[i + 1] = start;
 }
 
 /*
@@ -125,7 +160,7 @@ void mutate_generation(individual **current_generation,
     int current_index;
 
     /* keep the first 20% */
-    int count_best = (population_size * 2) / 10;
+    int count_best = (population_size * 3) / 10;
     for (i = 0; i < count_best; i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
@@ -151,12 +186,34 @@ void mutate_generation(individual **current_generation,
 
     current_index = i;
 
-    /* the remaining ones are being generated randomly */
-    for (i = current_index; i < population_size; i++) {
-        generate_random_chromosomes(next_generation[i]->chromosomes, c, 0);
-        next_generation[i]->fitness = 4;
+    // let's mutate the rest of them
+    for (i = current_index; i < current_index + count_best; i++) {
+        memcpy(next_generation[i]->chromosomes,
+            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i]->random_pos1 =
+            current_generation[i - current_index]->random_pos1;
+        next_generation[i]->random_pos2 =
+            current_generation[i - current_index]->random_pos2;
+        next_generation[i]->random_pos3 =
+            current_generation[i - current_index]->random_pos3;
+        next_generation[i]->random_pos4 =
+            current_generation[i - current_index]->random_pos4;
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
+
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos3];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos3] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos4];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos4] = aux;
     }
 
+    current_index = i;
+
+    for (i = current_index; i < population_size; i++) {
+        generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
+    }
 }
 
 /*
@@ -165,7 +222,6 @@ void mutate_generation(individual **current_generation,
  */
 void TSP_sequential_genetic(cities *c, int starting_point,
     int generations_no, int population_size) {
-    // srand(time(NULL));
  
     /* Step 1: Creating initial population */
 
@@ -179,7 +235,11 @@ void TSP_sequential_genetic(cities *c, int starting_point,
         current_generation[i]->position = i;
         current_generation[i]->chromosomes = malloc((c->size + 1) * sizeof(int));
 
-        generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
+        if (i != 0) {
+            generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
+        } else {
+            minimum_chromosome_road(current_generation[i]->chromosomes, starting_point, c);
+        }
 
         next_generation[i] = malloc(sizeof(individual));
         next_generation[i]->fitness = 0;
