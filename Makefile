@@ -1,5 +1,9 @@
+naive = sequential/naive/TSP.h
+genetic = sequential/genetic/TSP.h
+openmp = parallel/openmp/TSP.h
+
 build:
-	gcc -o main main.c sequential/naive/TSP.h sequential/genetic/TSP.h -lpthread
+	gcc -o main main.c $(naive) $(genetic) $(openmp) -lpthread -fopenmp
 
 run_genetic_seq_1:
 	./main sequential_genetic input/input1.in

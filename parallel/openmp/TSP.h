@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <omp.h>
 
 /*
  * Function that computes the fitness of each individual
@@ -111,16 +112,23 @@ void mutate_generation(individual **current_generation,
  * Cities are taken as genes
  * Fitness score is the path length of all the cities mentioned
  */
-void TSP_sequential_genetic(cities *c, int starting_point,
-    int generations_no, int population_size) {
- 
-    /* Step 1: Creating initial population */
+void TSP_parallel_openmp(cities *c, int starting_point,
+    int generations_no, int population_size, int no_threads) {
 
+    int i;
+    double t1, t2;
+ 
+    omp_set_num_threads(no_threads);
+
+    t1 = omp_get_wtime();
+
+    /* Step 1: Creating initial population */
     individual **current_generation = malloc(population_size * sizeof(individual*));
     individual **next_generation = malloc(population_size * sizeof(individual*));
     individual **auxiliary;
 
-    for (int i = 0; i < population_size; i++) {
+    #pragma omp parallel for private(i)
+    for (i = 0; i < population_size; i++) {
         current_generation[i] = malloc(sizeof(individual));
         current_generation[i]->fitness = 0;
         current_generation[i]->position = i;
@@ -166,6 +174,10 @@ void TSP_sequential_genetic(cities *c, int starting_point,
     compute_generation_fitness(current_generation, c, starting_point, population_size);
     qsort(current_generation, population_size,
         sizeof(individual*), compare_individuals);
+
+    t2 = omp_get_wtime();
+
+    printf("Total execution time = %lf\n", t2 - t1);
 
     print_result_individual(current_generation, c);
 }
