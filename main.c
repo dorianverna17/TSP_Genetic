@@ -4,13 +4,13 @@
 
 #include <string.h>
 
-#define NUM_THREADS 4
+#define NUM_THREADS 2
 #define START_CITY 0
 
 int main(int argc, char **argv) {
     if (argc < 3) {
         printf("Usage: ./main algorithm_type input_file");
-        printf("algorithm_type: sequential_naive, sequential_genetic, Pthreads, OpenMP, hibrid");
+        printf("algorithm_type: sequential_naive, sequential_genetic, Pthreads, OpenMP, hibrid\n");
         return 1;
     }
 
@@ -20,9 +20,9 @@ int main(int argc, char **argv) {
         TSP_sequential_naive(c, 0);
     } else if (strcmp(argv[1], "sequential_genetic") == 0) {
         /* 1000 generations, 1000 individuals per generation */
-        TSP_sequential_genetic(c, START_CITY, 1000, 1000);
+        TSP_sequential_genetic(c, START_CITY, 1000, 10000);
     } else if (strcmp(argv[1], "parallel_openmp") == 0) {
         /* 1000 generations, 1000 individuals per generation */
-        TSP_parallel_openmp(c, START_CITY, 1000, 1000, NUM_THREADS);
+        TSP_parallel_openmp(c, START_CITY, 1000, 10000, NUM_THREADS);
     }
 }
