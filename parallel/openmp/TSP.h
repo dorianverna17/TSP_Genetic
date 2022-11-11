@@ -8,61 +8,6 @@
 #include <omp.h>
 
 /*
- * Function that checks if a certain chromosome is
- * already in the array of chromosomes
- */
-bool check_chromosome_openmp(int chromosome, int *chromosomes, int size) {
-    if (chromosome == 0)
-        return true;
-    for (int i = 1; i < size; i++) {
-        if (chromosome == chromosomes[i])
-            return true;
-    }
-    return false;
-}
-
-/*
- * Function that generates a series of random chromosomes
- * to serve as first generation
- */
-void generate_random_chromosomes_openmp(int *chromosomes, cities *c, int starting_point) {
-    chromosomes[0] = starting_point;
-    for (int i = 1; i < c->size; i++) {
-        int city = rand() % c->size;
-
-        while (check_chromosome_openmp(city, chromosomes, i))
-            city = rand() % c->size;
-        chromosomes[i] = city;
-    }
-    chromosomes[c->size] = starting_point;
-}
-
-/*
- * Function that constructs an individual by choosing the
- * minimum distance from each city when that particular
- * city is visited by the travelling salesman
- */
-void minimum_chromosome_road_openmp(int *chromosomes, int start, cities *c) {
-    int min, i, j, pos, city = start;
-
-    chromosomes[0] = start;
-    for (i = 0; i < c->size - 1; i++) {
-        min = INT_MAX;
-        for (j = 0; j < c->size; j++) {
-            if (j != start && j != city &&
-                c->roads[city][j] < min &&
-                !check_chromosome_openmp(j, chromosomes, i)) {
-                    min = c->roads[city][j];
-                    pos = j;
-            }
-        }
-        chromosomes[i + 1] = pos;
-        city = pos;
-    }
-    chromosomes[i + 1] = start;
-}
-
-/*
  * Function that computes the fitness of each individual
  * of a certain generation at some point in time.
  * Fitness is the cost of the journey between these cities
@@ -161,7 +106,7 @@ void mutate_generation_openmp(individual **current_generation,
 			continue;
 		if (i >= end_index)
 			break;
-        generate_random_chromosomes_openmp(next_generation[i]->chromosomes, c, start);
+        generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
     }
 }
 
@@ -209,9 +154,9 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 	}
 
 
-	minimum_chromosome_road_openmp(current_generation[0]->chromosomes, starting_point, c);
+	minimum_chromosome_road(current_generation[0]->chromosomes, starting_point, c);
 	for (int i = 1; i < population_size; i++) {
-        generate_random_chromosomes_openmp(current_generation[i]->chromosomes, c, starting_point);
+        generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
     }
 
 	/* 
