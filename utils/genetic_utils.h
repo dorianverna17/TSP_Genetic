@@ -4,8 +4,10 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <pthread.h>
 
 #define min(a, b) ((a < b) ? a : b)
+#define max(a, b) ((a > b) ? a : b)
 
 typedef struct {
     int fitness;

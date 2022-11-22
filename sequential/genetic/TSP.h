@@ -101,11 +101,10 @@ void TSP_sequential_genetic(cities *c, int starting_point,
     int generations_no, int population_size) {
 
 	double t1, t2;
- 
+
 	t1 = omp_get_wtime();
-
+	
     /* Step 1: Creating initial population */
-
     individual **current_generation = malloc(population_size * sizeof(individual*));
     individual **next_generation = malloc(population_size * sizeof(individual*));
     individual **auxiliary;
@@ -137,7 +136,7 @@ void TSP_sequential_genetic(cities *c, int starting_point,
      * number of generations
      */
     for (int i = 0; i < generations_no; i++) {
-        /* Step 2: Calculating fitness */
+		/* Step 2: Calculating fitness */
         compute_generation_fitness(current_generation, c, starting_point, population_size);
         /* Step 3: Sort in order of fitnesses */
         qsort(current_generation, population_size,

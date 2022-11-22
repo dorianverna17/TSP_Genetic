@@ -1,9 +1,10 @@
 naive = sequential/naive/TSP.h
 genetic = sequential/genetic/TSP.h
 openmp = parallel/openmp/TSP.h
+pthreads = parallel/pthreads/TSP.h
 
 build:
-	gcc -o main main.c $(naive) $(genetic) $(openmp) -lpthread -fopenmp
+	gcc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) -lpthread -fopenmp -lm
 
 run_genetic_seq_1:
 	./main sequential_genetic input/input1.in
@@ -34,6 +35,36 @@ run_naive_4:
 
 run_naive_5:
 	./main sequential_naive input/input5.in
+
+run_openmp_1:
+	./main parallel_openmp input/input1.in
+
+run_openmp_2:
+	./main parallel_openmp input/input2.in
+
+run_openmp_3:
+	./main parallel_openmp input/input3.in
+
+run_openmp_4:
+	./main parallel_openmp input/input4.in
+
+run_openmp_5:
+	./main parallel_openmp input/input5.in
+
+run_pthreads_1:
+	./main parallel_pthreads input/input1.in
+
+run_pthreads_2:
+	./main parallel_pthreads input/input2.in
+
+run_pthreads_3:
+	./main parallel_pthreads input/input3.in
+
+run_pthreads_4:
+	./main parallel_pthreads input/input4.in
+
+run_pthreads_5:
+	./main parallel_pthreads input/input5.in
 
 clean:
 	rm main
