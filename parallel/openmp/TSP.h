@@ -29,6 +29,19 @@ void compute_generation_fitness_openmp(individual **generation, cities *c,
     }
 }
 
+void generate_random_chromosomes_parallel(individual *ind, cities *c, int starting_point) {
+    int *chromosomes = ind->chromosomes;
+	chromosomes[0] = starting_point;
+    for (int i = 1; i < c->size; i++) {
+        int city = rand() % c->size;
+
+        while (check_chromosome(city, chromosomes, i))
+            city = rand() % c->size;
+        chromosomes[i] = city;
+    }
+    chromosomes[c->size] = starting_point;
+}
+
 /*
  * Function that populates the next generation with the
  * first 40% individuals of the current generation, mutates
@@ -95,8 +108,8 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = current_index + count_best;
 
     for (i = max(start_index, current_index); i < min(population_size, end_index); i++) {
-        generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
-    }
+        generate_random_chromosomes_parallel(next_generation[i], c, start);
+	}
 }
 
 // function that merges the intervals from mergesort
@@ -266,6 +279,11 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 			#pragma omp barrier
 			compute_generation_fitness_openmp(current_generation, c, starting_point,
 				population_size, start, end);
+
+			#pragma omp barrier
+			if (thread_id == 0) {
+				print_generation(current_generation, c, population_size);
+			}
 
 			#pragma omp barrier
 			/* Step 3: Sort in order of fitnesses */

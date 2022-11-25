@@ -27,6 +27,6 @@ int main(int argc, char **argv) {
         TSP_parallel_openmp(c, START_CITY, 1000, 10000, NUM_THREADS);
     }  else if (strcmp(argv[1], "parallel_pthreads") == 0) {
         /* 1000 generations, 10000 individuals per generation */
-        TSP_parallel_pthreads(c, START_CITY, 1000, 10000, NUM_THREADS);
+        TSP_parallel_pthreads(c, START_CITY, 1000, 15, NUM_THREADS);
     }
 }

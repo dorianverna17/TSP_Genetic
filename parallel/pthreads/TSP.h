@@ -28,17 +28,17 @@ typedef struct info_t {
  */
 void compute_generation_fitness_pthreads(individual **generation, cities *c,
     int start, int population_size, int start_index, int end_index) {
-    int cost, i;
+    int cost, i, j;
     int *chromosomes;
-	
+
 	for (i = start_index; i < end_index; i++) {
         cost = 0;
         chromosomes = generation[i]->chromosomes;
-		for (int j = 0; j < c->size; j++) {
+		for (j = 0; j < c->size; j++) {
             cost += c->roads[chromosomes[j]][chromosomes[j + 1]];
         }
 		generation[i]->fitness = cost;
-    }
+	}
 }
 
 /*
@@ -48,7 +48,7 @@ void compute_generation_fitness_pthreads(individual **generation, cities *c,
  */
 void mutate_generation_pthreads(individual **current_generation,
     individual **next_generation, cities *c, int start, int gen_no, int population_size,
-	int start_index, int end_index) {
+	int start_index, int end_index, int thread_id) {
     int i, j, aux;
     int current_index;
 
@@ -115,11 +115,7 @@ void mutate_generation_pthreads(individual **current_generation,
 
     current_index = current_index + count_best;
 
-    for (i = current_index; i < population_size; i++) {
-		if (i < start_index)
-			continue;
-		if (i >= end_index)
-			break;
+	for (i = max(start_index, current_index); i < min(population_size, end_index); i++) {
         generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
     }
 }
@@ -132,15 +128,15 @@ void run_genetic_algorithm(info *information) {
 	int thread_id = information->thread_id;
 	int no_threads = information->no_threads;
 	
-	int start = thread_id * (population_size / no_threads);
-	int end = min((thread_id + 1) * (population_size / no_threads), population_size);
+	int start = thread_id * (double) population_size / no_threads;
+	int end = min((thread_id + 1) * (double) population_size / no_threads, population_size);
 	int i, j;
 	
 	cities *c = information->c;
 
 	individual **current_generation = information->current_generation;
 	individual **next_generation = information->next_generation;
-	individual **auxiliary;
+	individual *auxiliary;
 
 	pthread_barrier_t *barrier = information->barrier;
 		
@@ -160,9 +156,10 @@ void run_genetic_algorithm(info *information) {
     	}
     }
 
+	pthread_barrier_wait(barrier);
 	if (thread_id == 0) {	
 		minimum_chromosome_road(current_generation[0]->chromosomes, starting_point, c);
-		for (int i = 1; i < population_size; i++) {
+		for (i = 1; i < population_size; i++) {
        		generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
 		}
 	}
@@ -171,12 +168,17 @@ void run_genetic_algorithm(info *information) {
      * Complete the other steps until we reach the desired
      * number of generations
      */
-    for (i = 0; i < generations_no; i++) {
+	for (i = 0; i < generations_no; i++) {
        	/* Step 2: Calculating fitness */
 		pthread_barrier_wait(barrier);
 		compute_generation_fitness_pthreads(current_generation, c, starting_point,
-			population_size, start, end);
-	
+			population_size, 0, population_size);
+
+		pthread_barrier_wait(barrier);
+		if (thread_id == 0) {
+			print_generation(current_generation, c, population_size);
+		}
+
 		pthread_barrier_wait(barrier);
 		if (thread_id == 0) {
 			/* Step 3: Sort in order of fitnesses */
@@ -189,15 +191,16 @@ void run_genetic_algorithm(info *information) {
 		pthread_barrier_wait(barrier);
         /* Step 4: Selecting the best genes and mutating */
         mutate_generation_pthreads(current_generation, next_generation, c,
-        	starting_point, i, population_size, start, end);
+        	starting_point, i, population_size, start, end, thread_id);
 
 		pthread_barrier_wait(barrier);
 		if (thread_id == 0) {
         	/* Step 5: Switch to new generation */
-        	auxiliary = current_generation;
-        	current_generation = next_generation;
-        	next_generation = auxiliary;
+        	auxiliary = *current_generation;
+        	*current_generation = *next_generation;
+        	*next_generation = auxiliary;
 		}
+		pthread_barrier_wait(barrier);
 	}
 }
 
@@ -247,7 +250,7 @@ void TSP_parallel_pthreads(cities *c, int starting_point,
         }
 	}
 
-	// joining the threads when the algorithm is completed
+	/* joining the threads when the algorithm is completed */
     for (int i = 0; i < no_threads; i++) {
 		int err = pthread_join(threads[i], NULL);
 
