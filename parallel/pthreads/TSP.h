@@ -136,7 +136,7 @@ void run_genetic_algorithm(info *information) {
 
 	individual **current_generation = information->current_generation;
 	individual **next_generation = information->next_generation;
-	individual *auxiliary;
+	individual **auxiliary;
 
 	pthread_barrier_t *barrier = information->barrier;
 		
@@ -176,11 +176,6 @@ void run_genetic_algorithm(info *information) {
 
 		pthread_barrier_wait(barrier);
 		if (thread_id == 0) {
-			print_generation(current_generation, c, population_size);
-		}
-
-		pthread_barrier_wait(barrier);
-		if (thread_id == 0) {
 			/* Step 3: Sort in order of fitnesses */
 			qsort(current_generation, population_size,
        			sizeof(individual*), compare_individuals);
@@ -196,9 +191,9 @@ void run_genetic_algorithm(info *information) {
 		pthread_barrier_wait(barrier);
 		if (thread_id == 0) {
         	/* Step 5: Switch to new generation */
-        	auxiliary = *current_generation;
-        	*current_generation = *next_generation;
-        	*next_generation = auxiliary;
+        	auxiliary = current_generation;
+        	current_generation = next_generation;
+        	next_generation = auxiliary;
 		}
 		pthread_barrier_wait(barrier);
 	}
