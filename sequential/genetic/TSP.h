@@ -101,13 +101,13 @@ void TSP_sequential_genetic(cities *c, int starting_point,
     int generations_no, int population_size) {
 
 	double t1, t2;
-
-	t1 = omp_get_wtime();
 	
     /* Step 1: Creating initial population */
     individual **current_generation = malloc(population_size * sizeof(individual*));
     individual **next_generation = malloc(population_size * sizeof(individual*));
     individual **auxiliary;
+
+	t1 = omp_get_wtime();
 
     for (int i = 0; i < population_size; i++) {
         current_generation[i] = malloc(sizeof(individual));

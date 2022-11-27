@@ -18,7 +18,6 @@ void compute_generation_fitness_openmp(individual **generation, cities *c,
     int cost, i, j;
     int *chromosomes;
 	
-	#pragma omp parallel for schedule(auto) private(i, j, cost, chromosomes)
 	for (i = start_index; i < end_index; i++) {
         cost = 0;
         chromosomes = generation[i]->chromosomes;
@@ -42,7 +41,6 @@ void mutate_generation_openmp(individual **current_generation,
 
     /* keep the first 20% */
     int count_best = (population_size * 3) / 10;
-	// #pragma omp parallel for schedule(auto) private(i)
 	for (i = max(start_index, 0); i < min(count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
@@ -52,7 +50,6 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = count_best;
 
     // let's mutate the rest of them
-	// #pragma omp parallel for schedule(auto) private(i)
 	for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
@@ -69,8 +66,7 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = current_index + count_best;
 
     // let's mutate the rest of them
-	// #pragma omp parallel for schedule(auto) private(i)
-    for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
+	for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
         next_generation[i]->random_pos1 =
@@ -138,7 +134,7 @@ void mergesort_parallel(int thread_id, int actual_length, int square_length,
 
 	// declaring an auxiliary vector for the swap between
 	// the vectors
-	individual **aux = malloc(actual_length * sizeof(individual));
+	individual **aux;
 	
 	// we advance with the width of the vectors
 	// that we are merging
@@ -207,13 +203,13 @@ void TSP_parallel_openmp(cities *c, int starting_point,
     double t1, t2;
 	int start, end;
 
-	t1 = omp_get_wtime();
-
     /* Step 1: Creating initial population */
     individual **current_generation = (individual **) malloc(population_size * sizeof(individual*));
     individual **next_generation = (individual **) malloc(population_size * sizeof(individual*));
 	individual **prev_generation = (individual **) malloc(population_size * sizeof(individual*));
     individual **auxiliary;
+
+	t1 = omp_get_wtime();
 
 	for (i = 0; i < population_size; i++) {
         current_generation[i] = malloc(sizeof(individual));
@@ -269,12 +265,14 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 
 			#pragma omp barrier
 			/* Step 3: Sort in order of fitnesses */
-			mergesort_parallel(thread_id, population_size, square_length,
-				prev_generation, current_generation, no_threads);
+			// mergesort_parallel(thread_id, population_size, square_length,
+			// 	prev_generation, current_generation, no_threads);
 
 			// #pragma omp barrier
 			if (thread_id == 0) {
 				/* transferred this line from the mutation function */
+				qsort(current_generation, population_size,
+        			sizeof(individual*), compare_individuals);
 				generate_random_numbers(current_generation, c->size, population_size);
 			}
 
@@ -284,22 +282,19 @@ void TSP_parallel_openmp(cities *c, int starting_point,
         		starting_point, i, population_size, start, end);
 
 			#pragma omp barrier
-			if (thread_id == 0) {
-        		/* Step 5: Switch to new generation */
-        		auxiliary = current_generation;
-        		current_generation = next_generation;
-        		next_generation = auxiliary;
-			}
+        	auxiliary = current_generation;
+        	current_generation = next_generation;
+    		next_generation = auxiliary;
 		}
+
+		compute_generation_fitness_openmp(current_generation, c, starting_point,
+			population_size, start, end);
 	}
-
-	t2 = omp_get_wtime();
-
-	compute_generation_fitness_openmp(current_generation, c, starting_point,
-		population_size, 0, population_size);
 
 	qsort(current_generation, population_size,
         sizeof(individual*), compare_individuals);
+
+	t2 = omp_get_wtime();
 
     printf("Total execution time = %lf\n", t2 - t1);
 
