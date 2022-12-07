@@ -264,11 +264,6 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 				population_size, start, end);
 
 			#pragma omp barrier
-			/* Step 3: Sort in order of fitnesses */
-			// mergesort_parallel(thread_id, population_size, square_length,
-			// 	prev_generation, current_generation, no_threads);
-
-			// #pragma omp barrier
 			if (thread_id == 0) {
 				/* transferred this line from the mutation function */
 				qsort(current_generation, population_size,
