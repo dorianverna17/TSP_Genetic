@@ -15,7 +15,7 @@
  * Fitness is the cost of the journey between these cities
  */
 void compute_generation_fitness_mpi(individual *generation, cities *c,
-    int start, int population_size) {
+    int start, int population_size, int rank) {
     int cost;
     int *chromosomes;
 
@@ -57,10 +57,10 @@ bool check_chromosome_mpi(int chromosome, int *chromosomes, int size) {
 /*
  * Function that prints the best individual in the resulted generation
  */
-void print_result_individual_mpi(individual **gen, cities *c) {
-    int *journey = gen[0]->chromosomes;
+void print_result_individual_mpi(individual *gen, cities *c) {
+    int *journey = gen[0].chromosomes;
 
-    printf("%d ", gen[0]->fitness);
+    printf("%d ", gen[0].fitness);
     for (int i = 0; i < c->size; i++) {
         printf("%d -> ", journey[i] + 1);
     }
@@ -99,20 +99,20 @@ void generate_random_chromosomes_mpi(int *chromosomes, cities *c, int starting_p
  * Function that generates two random numbers for
  * mutation swapping
  */
-void generate_random_numbers_mpi(individual **gen, int size, int population_size) {
+void generate_random_numbers_mpi(individual *gen, int size, int population_size) {
     for (int i = 0; i < population_size; i++) {
-        gen[i]->random_pos1 = 1 + rand() % (size - 1);
-        gen[i]->random_pos2 = 1 + rand() % (size - 1);
+        gen[i].random_pos1 = 1 + rand() % (size - 1);
+        gen[i].random_pos2 = 1 + rand() % (size - 1);
     
-        while (gen[i]->random_pos1 == gen[i]->random_pos2) {
-            gen[i]->random_pos2 = 1 + rand() % (size - 1);
+        while (gen[i].random_pos1 == gen[i].random_pos2) {
+            gen[i].random_pos2 = 1 + rand() % (size - 1);
         }
 
-        gen[i]->random_pos3 = 1 + rand() % (size - 1);
+        gen[i].random_pos3 = 1 + rand() % (size - 1);
 
-        gen[i]->random_pos4 = 1 + rand() % (size - 1);
-        while (gen[i]->random_pos4 == gen[i]->random_pos3) {
-            gen[i]->random_pos4 = 1 + rand() % (size - 1);
+        gen[i].random_pos4 = 1 + rand() % (size - 1);
+        while (gen[i].random_pos4 == gen[i].random_pos3) {
+            gen[i].random_pos4 = 1 + rand() % (size - 1);
         }
     }
 }
@@ -147,17 +147,17 @@ void minimum_chromosome_road_mpi(int *chromosomes, int start, cities *c) {
  * first 40% individuals of the current generation, mutates
  * the first 30% and then crossover the first 30%
  */
-void mutate_generation_mpi(individual **current_generation,
-    individual **next_generation, cities *c, int start, int gen_no, int population_size) {
+void mutate_generation_mpi(individual *current_generation,
+    individual *next_generation, cities *c, int start, int gen_no, int population_size) {
     int i, j, aux;
     int current_index;
 
     /* keep the first 20% */
     int count_best = (population_size * 3) / 10;
     for (i = 0; i < count_best; i++) {
-        memcpy(next_generation[i]->chromosomes,
-            current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
-        next_generation[i]->fitness = 0;
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].fitness = 0;
     }
 
     current_index = count_best;
@@ -166,47 +166,47 @@ void mutate_generation_mpi(individual **current_generation,
     // let's mutate the rest of them
     generate_random_numbers_mpi(current_generation, c->size, population_size);
     for (i = current_index; i < current_index + count_best; i++) {
-        memcpy(next_generation[i]->chromosomes,
-            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
-        next_generation[i]->random_pos1 =
-            current_generation[i - current_index]->random_pos1;
-        next_generation[i]->random_pos2 =
-            current_generation[i - current_index]->random_pos2;
-        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
-            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
     }
 
     current_index = i;
 
     // let's mutate the rest of them
     for (i = current_index; i < current_index + count_best; i++) {
-        memcpy(next_generation[i]->chromosomes,
-            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
-        next_generation[i]->random_pos1 =
-            current_generation[i - current_index]->random_pos1;
-        next_generation[i]->random_pos2 =
-            current_generation[i - current_index]->random_pos2;
-        next_generation[i]->random_pos3 =
-            current_generation[i - current_index]->random_pos3;
-        next_generation[i]->random_pos4 =
-            current_generation[i - current_index]->random_pos4;
-        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
-            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        next_generation[i].random_pos3 =
+            current_generation[i - current_index].random_pos3;
+        next_generation[i].random_pos4 =
+            current_generation[i - current_index].random_pos4;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
 
-        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos3];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos3] =
-            next_generation[i]->chromosomes[next_generation[i]->random_pos4];
-        next_generation[i]->chromosomes[next_generation[i]->random_pos4] = aux;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
+        next_generation[i].chromosomes[next_generation[i].random_pos3] =
+            next_generation[i].chromosomes[next_generation[i].random_pos4];
+        next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
     }
 
     current_index = i;
 
     for (i = current_index; i < population_size; i++) {
-        generate_random_chromosomes_mpi(next_generation[i]->chromosomes, c, start);
+        generate_random_chromosomes_mpi(next_generation[i].chromosomes, c, start);
     }
 }
 
@@ -219,34 +219,47 @@ void define_MPI_individual_type(MPI_Datatype* mpi_individual) {
     MPI_Aint offsets[6];
     MPI_Status status;
 
-    offsets[0] = offsetof(aux_str, fitness);
+    offsets[0] = offsetof(individual, fitness);
     oldtypes[0] = MPI_INT;
     blockcounts[0] = 1;
 
-    offsets[1] = offsetof(aux_str, position);
+    offsets[1] = offsetof(individual, position);
     oldtypes[1] = MPI_INT;
     blockcounts[1] = 1;
 
-    offsets[2] = offsetof(aux_str, random_pos1);
+    offsets[2] = offsetof(individual, random_pos1);
     oldtypes[2] = MPI_INT;
     blockcounts[2] = 1;
 
-    offsets[3] = offsetof(aux_str, random_pos2);
+    offsets[3] = offsetof(individual, random_pos2);
     oldtypes[3] = MPI_INT;
     blockcounts[3] = 1;
 
-    offsets[4] = offsetof(aux_str, random_pos3);
+    offsets[4] = offsetof(individual, random_pos3);
     oldtypes[4] = MPI_INT;
     blockcounts[4] = 1;
 
-    offsets[5] = offsetof(aux_str, random_pos4);
+    offsets[5] = offsetof(individual, random_pos4);
     oldtypes[5] = MPI_INT;
     blockcounts[5] = 1;
 
     MPI_Datatype mpi_struct;
     MPI_Type_create_struct(6, blockcounts, offsets, oldtypes, &mpi_struct);
-    MPI_Type_create_resized(mpi_struct, 0, sizeof(aux_str), mpi_individual);
+    MPI_Type_create_resized(mpi_struct, 0, sizeof(individual), mpi_individual);
     MPI_Type_commit(mpi_individual);
+}
+
+int global_pos_calc(int rank, int pos, int *sendcounts, int nrproc) {
+    int global_pos = 0;
+    for (int i = 0; i < nrproc; i++) {
+        if (rank == i) {
+            global_pos += pos;
+            break;
+        } else {
+            global_pos += sendcounts[i];
+        }
+    }
+    return global_pos;
 }
 
 /*
@@ -263,8 +276,11 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
 	individual *auxiliary = NULL;
     individual *received_current_generation = NULL;
     individual *received_next_generation = NULL;
+    individual *aux_chromosomes;
 
 	MPI_Init(NULL, NULL);
+    MPI_Request request = MPI_REQUEST_NULL;
+    MPI_Status status;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &proc);
 
@@ -275,7 +291,7 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
 		current_generation = malloc(population_size * sizeof(individual));
 	    next_generation = malloc(population_size * sizeof(individual));
 	}
-    
+ 
 	/* Create MPI Data_type for individuals*/
     MPI_Datatype mpi_individual_type;
     define_MPI_individual_type(&mpi_individual_type);
@@ -287,6 +303,7 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
 				current_generation[i].fitness = 0;
 				current_generation[i].position = i;
 				current_generation[i].chromosomes = malloc((c->size + 1) * sizeof(int));
+                aux_chromosomes = malloc((c->size + 1) * sizeof(int));
 
 				// if (i != 0) {
 				// 	generate_random_chromosomes_mpi(current_generation[i]->chromosomes, c, starting_point);
@@ -326,8 +343,8 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
     received_next_generation = (individual*)malloc(sendcounts[rank]*sizeof(individual));
 
     MPI_Scatterv(current_generation, sendcounts, displs, mpi_individual_type, received_current_generation, sendcounts[rank], mpi_individual_type, 0, MPI_COMM_WORLD);
-    MPI_Scatterv(next_generation, sendcounts, displs, mpi_individual_type, received_next_generation, sendcounts[rank], mpi_individual_type, 0, MPI_COMM_WORLD);
-
+    
+    MPI_Barrier(MPI_COMM_WORLD);
     /*
      * Allocate memory for the chromosomes of each generation and initialize them
     */
@@ -337,51 +354,67 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
         if (rank == 0 && i == 0) {
             minimum_chromosome_road_mpi(received_current_generation[i].chromosomes, starting_point, c);
         } else {
-            generate_random_chromosomes_mpi(current_generation[i].chromosomes, c, starting_point);
+            generate_random_chromosomes_mpi(received_current_generation[i].chromosomes, c, starting_point);
         }
-    }
- 
 
+    }
     /* 
      * Complete the other steps until we reach the desired
      * number of generations
      */
     for (int i = 0; i < generations_no; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
         /* Step 2: Calculating fitness */
-        compute_generation_fitness_mpi(received_current_generation, c, starting_point, population_size);
+        compute_generation_fitness_mpi(received_current_generation, c, starting_point, sendcounts[rank], rank);
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Gatherv(received_current_generation, sendcounts[rank], mpi_individual_type, current_generation, sendcounts, displs, mpi_individual_type, 0, MPI_COMM_WORLD);
 
         // send chromosomes from workers to ROOT
+        for (int j = 0; j < sendcounts[rank]; j++) {
+            int global_pos = global_pos_calc(rank, j, sendcounts, proc);
+            MPI_Isend(received_current_generation[j].chromosomes, (c->size + 1), MPI_INT, ROOT, global_pos, MPI_COMM_WORLD, &request);
+        }
+
+        
+        if (rank == ROOT) {
+            for (int j = 0; j < population_size; j++) {
+                MPI_Irecv(aux_chromosomes, c->size + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+                MPI_Wait(&request, &status);
+                memcpy(current_generation[status.MPI_TAG].chromosomes, aux_chromosomes, (c->size + 1) * sizeof(int));
+            }
+        }
 
 
         if (rank == ROOT) {
             /* Step 3: Sort in order of fitnesses */
             qsort(current_generation, population_size,
                 sizeof(individual), compare_individuals_mpi);
-            // generate random numbers
+
+            /* Step 4: Selecting the best genes and mutating */
+            mutate_generation_mpi(current_generation, next_generation, c,
+                starting_point, i, population_size);
+
+            /* Step 5: Switch to new generation */
+            auxiliary = current_generation;
+            current_generation = next_generation;
+            next_generation = auxiliary;
+
         }
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Scatterv(current_generation, sendcounts, displs, mpi_individual_type, received_current_generation, sendcounts[rank], mpi_individual_type, 0, MPI_COMM_WORLD);
+        // MPI_Scatterv(next_generation, sendcounts, displs, mpi_individual_type, received_next_generation, sendcounts[rank], mpi_individual_type, 0, MPI_COMM_WORLD);
         
-        // Scatter & Send chromosomes to workers
-
-        /* Step 4: Selecting the best genes and mutating */
-        mutate_generation_mpi(current_generation, next_generation, c,
-            starting_point, i, population_size);
-
-        /* Step 5: Switch to new generation */
-        auxiliary = current_generation;
-        current_generation = next_generation;
-        next_generation = auxiliary;
     }
-
-    compute_generation_fitness_mpi(current_generation, c, starting_point, population_size);
-    qsort(current_generation, population_size,
-        sizeof(individual*), compare_individuals_mpi);
+    if (rank == 0) {
+        compute_generation_fitness_mpi(current_generation, c, starting_point, population_size, rank);
+        qsort(current_generation, population_size,
+            sizeof(individual), compare_individuals_mpi);
+        t2 = MPI_Wtime();
+        printf("Total execution time = %lf\n", t2 - t1);
+        print_result_individual_mpi(current_generation, c);
+    }
     
-    t2 = MPI_Wtime();
-
-    printf("Total execution time = %lf\n", t2 - t1);
-    print_result_individual_mpi(current_generation, c);
+    
 
 	MPI_Finalize();
 }

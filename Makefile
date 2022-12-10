@@ -6,13 +6,13 @@ mpi = parallel/mpi/TSP_mpi.h
 
 
 build:
-	gcc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) -lpthread -fopenmp -lm
+	mpicc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) $(mpi) -lpthread -fopenmp -lm
 
 build_mpi:
 	mpicc main.c $(mpi) -o main -fopenmp
 
 run_mpi:
-	mpirun -np 4 main parallel_mpi input/input4.in
+	mpirun -np 4 main parallel_mpi input/input5.in
 
 run_genetic_seq_1:
 	./main sequential_genetic input/input1.in
