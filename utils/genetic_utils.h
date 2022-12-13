@@ -11,12 +11,12 @@
 
 typedef struct {
     int fitness;
-    int *chromosomes;
     int position;
     int random_pos1;
     int random_pos2;
     int random_pos3;
     int random_pos4;
+    int *chromosomes;
 } individual;
 
 /*
