@@ -218,7 +218,25 @@ void mutate_generation_mpi(individual *current_generation,
     current_index += count_best;
 
     for (i = max(start_index, current_index); i < min(population_size, end_index); i++) {
-        generate_random_chromosomes_mpi(next_generation[i].chromosomes, c, start);
+		memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        next_generation[i].random_pos3 =
+            current_generation[i - current_index].random_pos3;
+        next_generation[i].random_pos4 =
+            current_generation[i - current_index].random_pos4;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
+        next_generation[i].chromosomes[next_generation[i].random_pos3] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
+
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos4];
+        next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
     }
 }
 
@@ -350,23 +368,40 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
     /*
      * Allocate memory for the chromosomes of each generation and initialize them
     */
-    for (int i = 0; i < sendcounts[rank]; i++) {
-        global_pos = global_pos_calc(rank, i, sendcounts, proc);
-        if (rank == 0 && i == 0) {
-            minimum_chromosome_road_mpi(current_generation[global_pos].chromosomes, starting_point, c);
-        } else {
-            generate_random_chromosomes_mpi(current_generation[global_pos].chromosomes, c, starting_point);
-        }
-
+   	int rank_count = 0;
+    int local_pos = 0;
+   	if (rank == 0) {
+		for (int i = 0; i < population_size; i++) {
+			if (i == 0) {
+				minimum_chromosome_road_mpi(current_generation[global_pos].chromosomes, starting_point, c);
+			} else {
+				if (local_pos >= sendcounts[rank_count]) {
+					local_pos = 0;
+					rank_count++;
+				}
+				local_pos++;
+				generate_random_chromosomes_mpi(current_generation[i].chromosomes, c, starting_point);
+				if (rank_count != 0) {
+					MPI_Isend(current_generation[i].chromosomes, (c->size + 1), MPI_INT, rank_count, i, MPI_COMM_WORLD, &request);
+				}
+			}
+		}
     }
     
+	if (rank != 0) {
+		for (int j = 0; j < sendcounts[rank]; j++) {
+			MPI_Irecv(aux_chromosomes, c->size + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+        	MPI_Wait(&request, &status);
+        	memcpy(current_generation[status.MPI_TAG].chromosomes, aux_chromosomes, (c->size + 1) * sizeof(int));
+    	}
+	}
 
     /* 
      * Complete the other steps until we reach the desired
      * number of generations
      */
     for (int i = 0; i < generations_no; i++) {
-
+		printf("rank, %d\n", rank);
         /* Step 2: Calculating fitness */
         global_pos = global_pos_calc(rank, 0, sendcounts, proc);
         compute_generation_fitness_mpi(current_generation, c, starting_point, global_pos, global_pos + sendcounts[rank], rank);

@@ -5,5 +5,6 @@ do
 	./main sequential_genetic input/input$i.in
 	./main parallel_openmp input/input$i.in
 	./main parallel_pthreads input/input$i.in
+	mpirun -np 4 ./main parallel_mpi input/input$i.in
 	echo ""
 done
