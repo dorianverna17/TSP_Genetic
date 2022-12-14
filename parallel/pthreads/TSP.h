@@ -291,5 +291,5 @@ void TSP_parallel_pthreads(cities *c, int starting_point,
 
 	printf("Total execution time = %lf\n", t2 - t1);
 
-    // print_result_individual(current_generation, c);
+    print_result_individual(current_generation, c);
 }

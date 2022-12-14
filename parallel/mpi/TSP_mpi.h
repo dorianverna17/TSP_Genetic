@@ -80,7 +80,6 @@ void print_individual_mpi(int *chromosomes, int size, int fitness) {
 
 void print_generation_mpi(individual *gen, cities *c, int size) {
     for (int i = 0; i < size; i++) {
-        printf("i = %d ", i);
         print_individual_mpi(gen[i].chromosomes, c->size + 1, gen[i].fitness);
     }
     printf("\n");
@@ -124,10 +123,13 @@ void generate_random_numbers_mpi(individual *gen, int size, int population_size,
         
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Bcast(&(gen[i].random_pos1), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&(gen[i].random_pos2), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&(gen[i].random_pos3), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&(gen[i].random_pos4), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-
+        MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Bcast(&(gen[i].random_pos2), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Bcast(&(gen[i].random_pos3), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Bcast(&(gen[i].random_pos4), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
     }
 }
 
@@ -373,7 +375,8 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
    	if (rank == 0) {
 		for (int i = 0; i < population_size; i++) {
 			if (i == 0) {
-				minimum_chromosome_road_mpi(current_generation[global_pos].chromosomes, starting_point, c);
+				minimum_chromosome_road_mpi(current_generation[i].chromosomes, starting_point, c);
+                local_pos++;
 			} else {
 				if (local_pos >= sendcounts[rank_count]) {
 					local_pos = 0;
@@ -390,19 +393,18 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
     
 	if (rank != 0) {
 		for (int j = 0; j < sendcounts[rank]; j++) {
-			MPI_Irecv(aux_chromosomes, c->size + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+			MPI_Irecv(aux_chromosomes, c->size + 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
         	MPI_Wait(&request, &status);
         	memcpy(current_generation[status.MPI_TAG].chromosomes, aux_chromosomes, (c->size + 1) * sizeof(int));
     	}
-	}
+    }
 
     /* 
      * Complete the other steps until we reach the desired
      * number of generations
      */
     for (int i = 0; i < generations_no; i++) {
-		printf("rank, %d\n", rank);
-        /* Step 2: Calculating fitness */
+		/* Step 2: Calculating fitness */
         global_pos = global_pos_calc(rank, 0, sendcounts, proc);
         compute_generation_fitness_mpi(current_generation, c, starting_point, global_pos, global_pos + sendcounts[rank], rank);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -417,15 +419,17 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
         
         if (rank == ROOT) {
             for (int j = 0; j < population_size; j++) {
+				next_generation[j].chromosomes = calloc((c->size + 1), sizeof(int));
                 MPI_Irecv(aux_chromosomes, c->size + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
                 MPI_Wait(&request, &status);
                 memcpy(received_current_generation[status.MPI_TAG].chromosomes, aux_chromosomes, (c->size + 1) * sizeof(int));
             }
         }
 
-        if (rank == ROOT)
+        if (rank == ROOT) {
             memcpy(current_generation, received_current_generation, population_size * sizeof(individual));
-        
+		}
+
         MPI_Barrier(MPI_COMM_WORLD);
 
         if (rank == ROOT) {

@@ -156,10 +156,11 @@ void TSP_sequential_genetic(cities *c, int starting_point,
     for (int i = 0; i < generations_no; i++) {
 		/* Step 2: Calculating fitness */
         compute_generation_fitness(current_generation, c, starting_point, population_size);
-        /* Step 3: Sort in order of fitnesses */
+		
+		/* Step 3: Sort in order of fitnesses */
         qsort(current_generation, population_size,
             sizeof(individual*), compare_individuals);
-		
+
 		generate_random_numbers(current_generation, c->size, population_size);
 
         /* Step 4: Selecting the best genes and mutating */
@@ -180,5 +181,5 @@ void TSP_sequential_genetic(cities *c, int starting_point,
 
 	printf("Total execution time = %lf\n", t2 - t1);
 
-    // print_result_individual(current_generation, c);
+    print_result_individual(current_generation, c);
 }
