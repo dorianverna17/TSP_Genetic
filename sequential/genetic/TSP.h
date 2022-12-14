@@ -89,7 +89,25 @@ void mutate_generation(individual **current_generation,
     current_index = i;
 
     for (i = current_index; i < population_size; i++) {
-        generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
+        memcpy(next_generation[i]->chromosomes,
+            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i]->random_pos1 =
+            current_generation[i - current_index]->random_pos1;
+        next_generation[i]->random_pos2 =
+            current_generation[i - current_index]->random_pos2;
+        next_generation[i]->random_pos3 =
+            current_generation[i - current_index]->random_pos3;
+        next_generation[i]->random_pos4 =
+            current_generation[i - current_index]->random_pos4;
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos3];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos3] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
+
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos4];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos4] = aux;
     }
 }
 
@@ -162,5 +180,5 @@ void TSP_sequential_genetic(cities *c, int starting_point,
 
 	printf("Total execution time = %lf\n", t2 - t1);
 
-    print_result_individual(current_generation, c);
+    // print_result_individual(current_generation, c);
 }

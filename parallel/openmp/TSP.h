@@ -18,6 +18,7 @@ void compute_generation_fitness_openmp(individual **generation, cities *c,
     int cost, i, j;
     int *chromosomes;
 	
+	#pragma omp parallel for schedule(auto) private(i, j, cost, chromosomes)
 	for (i = start_index; i < end_index; i++) {
         cost = 0;
         chromosomes = generation[i]->chromosomes;
@@ -41,6 +42,7 @@ void mutate_generation_openmp(individual **current_generation,
 
     /* keep the first 20% */
     int count_best = (population_size * 3) / 10;
+	// #pragma omp parallel for schedule(auto) private(i)
 	for (i = max(start_index, 0); i < min(count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i]->chromosomes, (c->size + 1) * sizeof(int));
@@ -50,6 +52,7 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = count_best;
 
     // let's mutate the rest of them
+	// #pragma omp parallel for schedule(auto) private(i)
 	for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
@@ -66,7 +69,8 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = current_index + count_best;
 
     // let's mutate the rest of them
-	for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
+	// #pragma omp parallel for schedule(auto) private(i)
+    for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
         memcpy(next_generation[i]->chromosomes,
             current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
         next_generation[i]->random_pos1 =
@@ -91,105 +95,26 @@ void mutate_generation_openmp(individual **current_generation,
     current_index = current_index + count_best;
 
     for (i = max(start_index, current_index); i < min(population_size, end_index); i++) {
-        generate_random_chromosomes(next_generation[i]->chromosomes, c, start);
+        memcpy(next_generation[i]->chromosomes,
+            current_generation[i - current_index]->chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i]->random_pos1 =
+            current_generation[i - current_index]->random_pos1;
+        next_generation[i]->random_pos2 =
+            current_generation[i - current_index]->random_pos2;
+        next_generation[i]->random_pos3 =
+            current_generation[i - current_index]->random_pos3;
+        next_generation[i]->random_pos4 =
+            current_generation[i - current_index]->random_pos4;
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos3];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos3] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos2];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos2] = aux;
+
+        aux = next_generation[i]->chromosomes[next_generation[i]->random_pos1];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos1] =
+            next_generation[i]->chromosomes[next_generation[i]->random_pos4];
+        next_generation[i]->chromosomes[next_generation[i]->random_pos4] = aux;
     }
-}
-
-// function that merges the intervals from mergesort
-// it is similar to the one implemented in the laboratory
-void merge_intervals(individual **source, int start, int mid, int end, individual **destination) {
-	int iA = start;
-	int iB = mid;
-	int i;
-
-	individual *aux;
-
-	for (i = start; i < end; i++) {
-		// here I implement the merging
-		// the conditions are taken from the compare function
-		// that was given as parameter to the qsort function
-		// in the skel received from the APD team
-		if (end == iB || (iA < mid && source[iB]->fitness > source[iA]->fitness)) {
-			// destination[i] = source[iA];
-			memcpy(destination[i], source[iA], sizeof(individual));
-			iA++;
-		} else if (end == iB || (iA < mid && source[iB]->fitness == source[iA]->fitness)) {
-			// destination[i] = source[iA];
-			memcpy(destination[i], source[iA], sizeof(individual));
-			iA++;
-		} else {
-			// destination[i] = source[iB];
-			memcpy(destination[i], source[iB], sizeof(individual));
-			iB++;
-		}
-	}
-}
-
-
-void mergesort_parallel(int thread_id, int actual_length, int square_length,
-	individual **vNew, individual **v, int P) {
-	int start_index, end_index;
-	int start_local, end_local;
-	int width;
-
-	// declaring an auxiliary vector for the swap between
-	// the vectors
-	individual **aux;
-	
-	// we advance with the width of the vectors
-	// that we are merging
-	#pragma omp barrier
-	// here are the steps performed by the mergesort
-	// I gradually increase the width of the intervals which are merged
-	// this part is similar to the one at the laboratory
-	for (width = 1; width < actual_length; width = 2 * width) {
-		// here I compute the starting and ending indexes 
-		start_index = thread_id * (double) square_length / P;
-		end_index = (thread_id + 1) * (double) square_length / P;
-		// the the local index is greater than the squared length of
-		// the generation to be sorted, hten the end index (local)
-		// takes the value of this squared length
-		start_local = (start_index / (2 * width)) * (2 * width);
-		if (square_length > (end_index / (2 * width)) * (2 * width)) {
-			end_local = (end_index / (2 * width)) * (2 * width);
-		} else {
-			end_local = square_length;
-		}
-
-		// here I iterate over the indexes which are specific to the thread
-		// with the id thread_id
-		for (int i = start_local; i < end_local; i = i + 2 * width) {
-			// I have 3 cases in which I call the function that merges the intervals
-			if (i + 2 * width > actual_length && i + width > actual_length) {
-				// This is the case in which the size of the two intervals that
-				// need to be merged ar actually overflowing, the size of the vector
-				// overall is smaller. The position of the mid is also greater than
-				// the actual size. This is why I set the mid and the end to be the
-				// actual size of the vector 
-				merge_intervals(v, i, actual_length, actual_length, vNew);
-			} else if (i + 2 * width > actual_length && i + width <= actual_length) {
-				// The second case is just like the case above, but only the size of the
-				// second interval is overflowing, the index of the mid is ok
-				merge_intervals(v, i, i + width, actual_length, vNew);
-			} else {
-				// here is the default case that has been treated in the laboratory as well
-				merge_intervals(v, i, i + width, i + 2 * width, vNew);
-			}
-		}
-
-		// these barrier wait calls are for assuring that
-		// all threads have finished execution of a part of code
-		// needed by all of them later
-		#pragma omp barrier
- 
-		// here I interchange the vectors so that I
-		// get the result in v
-		aux = v;
-		v = vNew;
-		vNew = aux;
-
-		#pragma omp barrier
-	}
 }
 
 /*
@@ -203,13 +128,13 @@ void TSP_parallel_openmp(cities *c, int starting_point,
     double t1, t2;
 	int start, end;
 
+	t1 = omp_get_wtime();
+
     /* Step 1: Creating initial population */
     individual **current_generation = (individual **) malloc(population_size * sizeof(individual*));
     individual **next_generation = (individual **) malloc(population_size * sizeof(individual*));
 	individual **prev_generation = (individual **) malloc(population_size * sizeof(individual*));
     individual **auxiliary;
-
-	t1 = omp_get_wtime();
 
 	for (i = 0; i < population_size; i++) {
         current_generation[i] = malloc(sizeof(individual));
@@ -264,10 +189,11 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 				population_size, start, end);
 
 			#pragma omp barrier
+			// #pragma omp barrier
 			if (thread_id == 0) {
-				/* transferred this line from the mutation function */
 				qsort(current_generation, population_size,
         			sizeof(individual*), compare_individuals);
+				/* transferred this line from the mutation function */
 				generate_random_numbers(current_generation, c->size, population_size);
 			}
 
@@ -277,21 +203,24 @@ void TSP_parallel_openmp(cities *c, int starting_point,
         		starting_point, i, population_size, start, end);
 
 			#pragma omp barrier
-        	auxiliary = current_generation;
-        	current_generation = next_generation;
-    		next_generation = auxiliary;
+			if (thread_id == 0) {
+        		/* Step 5: Switch to new generation */
+        		auxiliary = current_generation;
+        		current_generation = next_generation;
+        		next_generation = auxiliary;
+			}
 		}
-
-		compute_generation_fitness_openmp(current_generation, c, starting_point,
-			population_size, start, end);
 	}
+
+	t2 = omp_get_wtime();
+
+	compute_generation_fitness_openmp(current_generation, c, starting_point,
+		population_size, 0, population_size);
 
 	qsort(current_generation, population_size,
         sizeof(individual*), compare_individuals);
 
-	t2 = omp_get_wtime();
-
     printf("Total execution time = %lf\n", t2 - t1);
 
-    print_result_individual(current_generation, c);
+    // print_result_individual(current_generation, c);
 }
