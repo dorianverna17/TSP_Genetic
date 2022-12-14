@@ -3,16 +3,17 @@ genetic = sequential/genetic/TSP.h
 openmp = parallel/openmp/TSP.h
 pthreads = parallel/pthreads/TSP.h
 mpi = parallel/mpi/TSP_mpi.h
+mpi_omp = parallel/mpi_omp/TSP_mpi_omp.h
 
 
 build:
-	mpicc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) $(mpi) -lpthread -fopenmp -lm
+	mpicc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) $(mpi) $(mpi_omp) -lpthread -fopenmp -lm
 
 build_mpi:
 	mpicc main.c $(mpi) -o main -fopenmp
 
 run_mpi:
-	mpirun -np 4 main parallel_mpi input/input5.in
+	mpirun -np 4 main parallel_mpi input/input4.in
 
 run_genetic_seq_1:
 	./main sequential_genetic input/input1.in
@@ -74,5 +75,7 @@ run_pthreads_4:
 run_pthreads_5:
 	./main parallel_pthreads input/input5.in
 
+run_mpi_omp_4:
+	mpirun -np 4 main parallel_mpi_omp input/input4.in
 clean:
 	rm main
