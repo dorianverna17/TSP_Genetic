@@ -6,5 +6,6 @@ do
 	./main parallel_openmp input/input$i.in
 	./main parallel_pthreads input/input$i.in
 	mpirun -np 4 ./main parallel_mpi input/input$i.in
+	mpirun -np 4 ./main parallel_mpi_omp input/input$i.in
 	echo ""
 done
