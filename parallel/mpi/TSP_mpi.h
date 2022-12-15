@@ -301,7 +301,8 @@ int global_pos_calc(int rank, int pos, int *sendcounts, int nrproc) {
 void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int population_size) {
 
 	int rank, proc, global_pos;
-    double t1, t2; 
+    double t1, t2;
+	int *auxiliary_chromosomes;
     
     individual *current_generation = NULL;
 	individual *next_generation = NULL;
@@ -407,10 +408,9 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
 		/* Step 2: Calculating fitness */
         global_pos = global_pos_calc(rank, 0, sendcounts, proc);
         compute_generation_fitness_mpi(current_generation, c, starting_point, global_pos, global_pos + sendcounts[rank], rank);
-        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Gatherv(&(current_generation[global_pos]), sendcounts[rank], mpi_individual_type, received_current_generation, sendcounts, displs, mpi_individual_type, 0, MPI_COMM_WORLD);
 
-        /* send chromosomes from workers to ROOT */
+		/* send chromosomes from workers to ROOT */
         for (int j = 0; j < sendcounts[rank]; j++) {
             global_pos = global_pos_calc(rank, j, sendcounts, proc);
             MPI_Isend(current_generation[global_pos].chromosomes, (c->size + 1), MPI_INT, ROOT, global_pos, MPI_COMM_WORLD, &request);
@@ -426,7 +426,7 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
             }
         }
 
-        if (rank == ROOT) {
+		if (rank == ROOT) {
             memcpy(current_generation, received_current_generation, population_size * sizeof(individual));
 		}
 
@@ -451,12 +451,12 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
 
         MPI_Barrier(MPI_COMM_WORLD);
         global_pos = global_pos_calc(rank, 0, sendcounts, proc);
-
-        /* Step 4: Selecting the best genes and mutating */
+		
+		/* Step 4: Selecting the best genes and mutating */
         mutate_generation_mpi(current_generation, next_generation, c,
             starting_point, global_pos, global_pos + sendcounts[rank], population_size, rank);
 
-        MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
        
         /* Step 5: Switch to new generation */
         auxiliary = current_generation;
@@ -464,8 +464,6 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
         next_generation = auxiliary;
 
         MPI_Barrier(MPI_COMM_WORLD);
-        
-            
     }
     
     MPI_Barrier(MPI_COMM_WORLD);

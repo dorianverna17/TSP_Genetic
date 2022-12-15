@@ -162,14 +162,6 @@ void TSP_parallel_openmp(cities *c, int starting_point,
     	generate_random_chromosomes(current_generation[i]->chromosomes, c, starting_point);
 	}
 
-	int res_pow = 1, square_length;
-	int count_pow = 0;
-	while (res_pow < population_size) {
-		count_pow++;
-		res_pow = pow(2, count_pow);
-	}
-	square_length = res_pow;
-
 	omp_set_num_threads(no_threads);
 	
 	#pragma omp parallel private(thread_id, start, end, i, auxiliary)
