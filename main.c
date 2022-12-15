@@ -2,7 +2,7 @@
 #include "sequential/genetic/TSP.h"
 #include "parallel/openmp/TSP.h"
 #include "parallel/pthreads/TSP.h"
-#include "parallel/mpi/TSP_mpi.h"
+#include "parallel/mpi/TSP_mpi.h" // sau 2
 #include "parallel/mpi_omp/TSP_mpi_omp.h"
 
 #include <string.h>

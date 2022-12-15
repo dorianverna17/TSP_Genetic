@@ -3,11 +3,15 @@ genetic = sequential/genetic/TSP.h
 openmp = parallel/openmp/TSP.h
 pthreads = parallel/pthreads/TSP.h
 mpi = parallel/mpi/TSP_mpi.h
+mpi2 = parallel/mpi/TSP_mpi2.h
 mpi_omp = parallel/mpi_omp/TSP_mpi_omp.h
 
 
 build:
 	mpicc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) $(mpi) $(mpi_omp) -lpthread -fopenmp -lm
+
+build2:
+	mpicc -o main main.c $(naive) $(genetic) $(openmp) $(pthreads) $(mpi2) $(mpi_omp) -lpthread -fopenmp -lm
 
 build_mpi:
 	mpicc main.c $(mpi) -o main -fopenmp
