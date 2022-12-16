@@ -1,7 +1,7 @@
 #include "../../utils/graph.h"
 #include "../../utils/genetic_utils.h"
-#include "mpi.h"
 #include "../../utils/mpi/mpi_utils.h"
+#include "mpi.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -12,35 +12,41 @@
 
 #define ROOT 0
 
+typedef struct info_thr {
+	int index;
+	int population_size;
+	int generations_no;
+	int starting_point;
+	int thread_id;
+	int no_threads;
+	cities *c;
+	individual *current_generation;
+	individual *next_generation;
+	pthread_barrier_t *barrier;
+} info_thr;
+
 /*
  * Function that computes the fitness of each individual
  * of a certain generation at some point in time.
  * Fitness is the cost of the journey between these cities
  */
-void compute_generation_fitness_mpi_omp(individual *generation, cities *c,
+void compute_generation_fitness_mpi_pthreads(individual *generation, cities *c,
     int start, int population_size, int no_threads) {
     int cost, start_index, end_index, i, thread_id, j;
     int *chromosomes;
 
-    omp_set_num_threads(no_threads);
+    start_index = thread_id * (double) population_size / no_threads;
+    end_index = min((thread_id + 1) * (double) population_size / no_threads, population_size);
 
-    #pragma omp parallel private(thread_id, start_index, end_index, i, cost, j, chromosomes) shared(generation, c, no_threads, population_size)
-	{
-		thread_id = omp_get_thread_num();
-		start_index = thread_id * (double) population_size / no_threads;
-		end_index = min((thread_id + 1) * (double) population_size / no_threads, population_size);
+    for (i = start_index; i < end_index; i++) {
 
-        for (i = start_index; i < end_index; i++) {
+        cost = 0;
+        chromosomes = generation[i].chromosomes;
 
-            cost = 0;
-            chromosomes = generation[i].chromosomes;
-
-            for (j = 0; j < c->size; j++) {
-                cost += c->roads[chromosomes[j]][chromosomes[j + 1]];
-            }
-            generation[i].fitness = cost;
+        for (j = 0; j < c->size; j++) {
+            cost += c->roads[chromosomes[j]][chromosomes[j + 1]];
         }
-        #pragma omp barrier
+        generation[i].fitness = cost;
     }
 }
 
@@ -49,7 +55,7 @@ void compute_generation_fitness_mpi_omp(individual *generation, cities *c,
  * Function that generates two random numbers for
  * mutation swapping
  */
-void generate_random_numbers_mpi_omp(individual *gen, int size, int population_size) {
+void generate_random_numbers_mpi_pthreads(individual *gen, int size, int population_size) {
 
     // only one worker generates the numbers and broadcasts the values
     for (int i = 0; i < population_size; i++) {
@@ -70,106 +76,101 @@ void generate_random_numbers_mpi_omp(individual *gen, int size, int population_s
     }
 }
 
+void pthreads_mutate(info_thr *information) {
+    int index = information->index;
+	int population_size = information->population_size;
+	int thread_id = information->thread_id;
+	int no_threads = information->no_threads;
+	
+	int start = thread_id * (double) population_size / no_threads;
+	int end = min((thread_id + 1) * (double) population_size / no_threads, population_size);
+	
+	cities *c = information->c;
+    individual *current_generation = information->current_generation;
+	individual *next_generation = information->next_generation;
+    
+    int current_index, aux, i, j;
 
-/*
- * Function that populates the next generation with the
- * first 40% individuals of the current generation, mutates
- * the first 30% and then crossover the first 30%
- */
-void mutate_generation_mpi_omp(individual *current_generation,
-    individual *next_generation, cities *c, int start, int gen_no, int population_size, int no_threads) {
-    int i, j, aux, thread_id, current_index, start_index, end_index;
-
-    /* keep the first 20% */
     int count_best = (population_size * 3) / 10;
 
-    omp_set_num_threads(no_threads);
-
-    #pragma omp parallel private(thread_id, start_index, end_index, i, current_index, aux) shared(current_generation, next_generation, c, no_threads, population_size, count_best)
-	{
-        thread_id = omp_get_thread_num();
-        start_index = thread_id * (double) population_size / no_threads;
-        end_index = min((thread_id + 1) * (double) population_size / no_threads, population_size);
-
-        for (i = start_index; i < min(count_best, end_index); i++) {
-            memcpy(next_generation[i].chromosomes,
-                current_generation[i].chromosomes, (c->size + 1) * sizeof(int));
-            next_generation[i].fitness = 0;
-        }
-
-        current_index = count_best;
-
-        // let's mutate the rest of them
-        for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
-            memcpy(next_generation[i].chromosomes,
-                current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
-            next_generation[i].random_pos1 =
-                current_generation[i - current_index].random_pos1;
-            next_generation[i].random_pos2 =
-                current_generation[i - current_index].random_pos2;
-            aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
-            next_generation[i].chromosomes[next_generation[i].random_pos1] =
-                next_generation[i].chromosomes[next_generation[i].random_pos2];
-            next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
-        }
-
-        current_index = i;
-
-        // let's mutate the rest of them
-        for (i = max(start_index, current_index); i < min(current_index + count_best, end_index); i++) {
-            memcpy(next_generation[i].chromosomes,
-                current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
-            next_generation[i].random_pos1 =
-                current_generation[i - current_index].random_pos1;
-            next_generation[i].random_pos2 =
-                current_generation[i - current_index].random_pos2;
-            next_generation[i].random_pos3 =
-                current_generation[i - current_index].random_pos3;
-            next_generation[i].random_pos4 =
-                current_generation[i - current_index].random_pos4;
-            aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
-            next_generation[i].chromosomes[next_generation[i].random_pos1] =
-                next_generation[i].chromosomes[next_generation[i].random_pos2];
-            next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
-
-            aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
-            next_generation[i].chromosomes[next_generation[i].random_pos3] =
-                next_generation[i].chromosomes[next_generation[i].random_pos4];
-            next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
-        }
-
-        current_index = i;
-
-        for (i = max(start_index, current_index); i < min(population_size, end_index); i++) {
-            memcpy(next_generation[i].chromosomes,
-                current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
-            next_generation[i].random_pos1 =
-                current_generation[i - current_index].random_pos1;
-            next_generation[i].random_pos2 =
-                current_generation[i - current_index].random_pos2;
-            next_generation[i].random_pos3 =
-                current_generation[i - current_index].random_pos3;
-            next_generation[i].random_pos4 =
-                current_generation[i - current_index].random_pos4;
-            aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
-            next_generation[i].chromosomes[next_generation[i].random_pos3] =
-                next_generation[i].chromosomes[next_generation[i].random_pos2];
-            next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
-
-            aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
-            next_generation[i].chromosomes[next_generation[i].random_pos1] =
-                next_generation[i].chromosomes[next_generation[i].random_pos4];
-            next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
-        }
+    for (i = start; i < min(count_best, end); i++) {
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].fitness = 0;
     }
-}
 
+    current_index = count_best;
+
+    // let's mutate the rest of them
+    for (i = max(start, current_index); i < min(current_index + count_best, end); i++) {
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
+    }
+
+    current_index = i;
+
+    // let's mutate the rest of them
+    for (i = max(start, current_index); i < min(current_index + count_best, end); i++) {
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        next_generation[i].random_pos3 =
+            current_generation[i - current_index].random_pos3;
+        next_generation[i].random_pos4 =
+            current_generation[i - current_index].random_pos4;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
+
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
+        next_generation[i].chromosomes[next_generation[i].random_pos3] =
+            next_generation[i].chromosomes[next_generation[i].random_pos4];
+        next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
+    }
+
+    current_index = i;
+
+    for (i = max(start, current_index); i < min(population_size, end); i++) {
+        memcpy(next_generation[i].chromosomes,
+            current_generation[i - current_index].chromosomes, (c->size + 1) * sizeof(int));
+        next_generation[i].random_pos1 =
+            current_generation[i - current_index].random_pos1;
+        next_generation[i].random_pos2 =
+            current_generation[i - current_index].random_pos2;
+        next_generation[i].random_pos3 =
+            current_generation[i - current_index].random_pos3;
+        next_generation[i].random_pos4 =
+            current_generation[i - current_index].random_pos4;
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos3];
+        next_generation[i].chromosomes[next_generation[i].random_pos3] =
+            next_generation[i].chromosomes[next_generation[i].random_pos2];
+        next_generation[i].chromosomes[next_generation[i].random_pos2] = aux;
+
+        aux = next_generation[i].chromosomes[next_generation[i].random_pos1];
+        next_generation[i].chromosomes[next_generation[i].random_pos1] =
+            next_generation[i].chromosomes[next_generation[i].random_pos4];
+        next_generation[i].chromosomes[next_generation[i].random_pos4] = aux;
+    }
+
+}
 
 /*
  * Cities are taken as genes
  * Fitness score is the path length of all the cities mentioned
  */
-void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int population_size, int no_threads) {
+void TSP_parallel_mpi_pthreads(cities *c, int starting_point, int generations_no, int population_size, int no_threads) {
 
 	int rank, proc, global_pos;
     double t1, t2; 
@@ -191,8 +192,20 @@ void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int
     MPI_Datatype mpi_individual_type;
     define_MPI_individual_type(&mpi_individual_type);
 
-    t1 = omp_get_wtime();
+    /* pthreads initialization */
+    pthread_t threads[no_threads];
+	info_thr information[no_threads];
+    for (int i = 0; i < no_threads; i++) {
+        information[i].index = i;
+		information[i].thread_id = i;
+		information[i].no_threads = no_threads;
+		information[i].population_size = population_size;
+		information[i].generations_no = generations_no;
+		information[i].starting_point = starting_point;
+		information[i].c = c;
+    }
 
+    t1 = omp_get_wtime();
 
     /* Step 1: Creating initial population in the ROOT worker*/
     if (rank == ROOT) {
@@ -256,6 +269,7 @@ void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int
      */
     for (int i = 0; i < generations_no; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
+        /* Scatering the current generation and sending the chromosomes */
         MPI_Scatterv(current_generation, sendcounts, displs, mpi_individual_type, received_current_generation, sendcounts[rank], mpi_individual_type, 0, MPI_COMM_WORLD);
         if (rank == ROOT) {
             int rank_count = 0;
@@ -278,7 +292,7 @@ void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int
         MPI_Barrier(MPI_COMM_WORLD);
 
         /* Calculating fitness in each worker */
-        compute_generation_fitness_mpi_omp(received_current_generation, c, starting_point, sendcounts[rank], no_threads);
+        compute_generation_fitness_mpi_pthreads(received_current_generation, c, starting_point, sendcounts[rank], no_threads);
         MPI_Barrier(MPI_COMM_WORLD);
 
         /* Gathering in ROOT the individuals */
@@ -306,11 +320,33 @@ void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int
             /* Sort in order of fitnesses */
             qsort(current_generation, population_size,
                 sizeof(individual), compare_individuals_mpi); 
-            generate_random_numbers_mpi_omp(current_generation, c->size, population_size);
+            generate_random_numbers_mpi_pthreads(current_generation, c->size, population_size);
 
-            /* Selecting the best genes and mutating */
-            mutate_generation_mpi_omp(current_generation, next_generation, c,
-                starting_point, i, population_size, no_threads);
+            /* adding the current generation and the next generation in the information for pthreads */
+            for (int i = 0; i < no_threads; i++) {
+                information[i].current_generation = current_generation;
+                information[i].next_generation = next_generation;
+            }
+
+            /* creating the pthreads */
+            int err;
+            for (int i = 0; i < no_threads; i++) {
+                err = pthread_create(&threads[i], NULL, (void *)pthreads_mutate, &information[i]);
+                if (err) {
+                    printf("Error when creating the thread\n");
+                    exit(-1);
+                }
+            }
+
+            /* joining the threads when mutating is completed */
+            for (int i = 0; i < no_threads; i++) {
+                int err = pthread_join(threads[i], NULL);
+
+                if (err) {
+                    printf("Eroare la asteptarea thread-ului %d\n", i);
+                    exit(-1);
+                }
+            }
 
             /* Switch to new generation */
             auxiliary = current_generation;
@@ -324,7 +360,7 @@ void TSP_parallel_mpi_omp(cities *c, int starting_point, int generations_no, int
 
     if (rank == ROOT) {
 
-        compute_generation_fitness_mpi_omp(current_generation, c, starting_point, population_size, no_threads);
+        compute_generation_fitness_mpi_pthreads(current_generation, c, starting_point, population_size, no_threads);
 
         qsort(current_generation, population_size,
             sizeof(individual), compare_individuals_mpi);

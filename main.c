@@ -2,8 +2,9 @@
 #include "sequential/genetic/TSP.h"
 #include "parallel/openmp/TSP.h"
 #include "parallel/pthreads/TSP.h"
-#include "parallel/mpi/TSP_mpi.h" // sau 2
+#include "parallel/mpi/TSP_mpi.h"
 #include "parallel/mpi_omp/TSP_mpi_omp.h"
+#include "parallel/mpi-pthreads/TSP_mpi_pthreads.h"
 
 #include <string.h>
 
@@ -34,6 +35,8 @@ int main(int argc, char **argv) {
         /* 1000 generations, 1000 individuals per generation */
         TSP_parallel_mpi(c, START_CITY, 1000, c->size);
     } else if (strcmp(argv[1], "parallel_mpi_omp") == 0) {
-        TSP_parallel_mpi_omp(c, START_CITY, 1000, c->size, NUM_THREADS);
+        TSP_parallel_mpi_omp(c, START_CITY, 1000, c->size, 2);
+    } else if (strcmp(argv[1], "parallel_mpi_pthreads") == 0) {
+        TSP_parallel_mpi_pthreads(c, START_CITY, 1000, c->size, 2);
     }
 }

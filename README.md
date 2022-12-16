@@ -92,7 +92,25 @@ ruta: 1 -> 2 -> 4 -> 3 -> 1
 	- Sectiunea paralela este aceeasi ca cea de la OpenMP, din acest punct de vedere, cele doua implementari nu prezinta nicio diferenta, ambele paralelizeaza aceleasi secvente de cod + functii.
 
 ### MPI
+- In cadrul implementarii MPI au fost paralelizate functiile din bucla de generatii (compute_fitness si 
+mutate_generation). Ce este specific acestei implementari este crearea unui nou tip
+de date de tip MPI pentru ca operatiile cu vectori de individual sa fie posibile (Gatherv). Deoarece pentru a 
+paraleliza mutate este necesar ca workerii sa aiba acces la indivizii altor workeri am optat pentru a avea cate un 
+vector de indivizi in care se retine generatia curenta in fiecare worker. Totusi fiecare worker
+lucreaza pe cate o bucata din acest vector, iar dupa sortare se actualizeaza in toti workerii vectorii din fiecare 
+worker. Din cauza utilizarii dese (dar necesare )a functiilor MPI_Isend, MPI_Irecv, MPI_Bcast si MPI_Gatherv se 
+introduce o latenta datorata comunicarii dintre workeri care se simte in timpul ridicat de executie pentru input-urile 
+de dimensiuni foarte mari. Pentru output-urile de dimensiuni mai mici insa este o implementare destul de rapida.
+
 ### Hibrid (MPI + OpenMP)
+- In cadrul implementarii MPI + OpenMP a fost paralelizata bucla de generatii astfel:
+	- Fiecare worker MPI primeste o parte din vectorul generatiei curente (inclusiv cromozomii fiecarui individ)
+	- Fiecare worker paralelizeaza cu ajutorul OpenMP calculul fitness-ul fiecarui individ din vectorul sau
+	- Se aduna toti indivizii in vectorul generatie din ROOT
+	- indivizii sunt sortati in ROOT, apoi se fac mutatii in workerul ROOT, cu ajutorul paralelizarii OpenMP
+- Desi foloseste Scatterv, Gatherv, Bcast, Isend si Irecv, aceasta implementare reuseste sa reduca timpul de
+executie al implementarii MPI initiale la jumatate, deoarece folosind si OpenMP se pot reduce din numarul de
+operatii de comunicare intre workeri, reducand din latenta.
 
 ## Concluzii
 
