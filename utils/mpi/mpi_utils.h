@@ -4,6 +4,7 @@
 #include <string.h>
 #include "../genetic_utils.h"
 #include "mpi.h"
+#include <stddef.h>
 
 /*
  * Compare function used for sorting the individuals

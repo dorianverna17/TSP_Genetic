@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <math.h>
 #include <omp.h>
+#include <stddef.h>
 
 #define ROOT 0
 

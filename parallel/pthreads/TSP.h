@@ -16,7 +16,6 @@ typedef struct info_t {
 	int starting_point;
 	int thread_id;
 	int no_threads;
-	int square_length;
 	cities *c;
 	individual **current_generation;
 	individual **next_generation;
@@ -136,7 +135,6 @@ void run_genetic_algorithm(info *information) {
 	int starting_point = information->starting_point;
 	int thread_id = information->thread_id;
 	int no_threads = information->no_threads;
-	int square_length = information->square_length;
 	
 	int start = thread_id * (double) population_size / no_threads;
 	int end = min((thread_id + 1) * (double) population_size / no_threads, population_size);
@@ -228,14 +226,6 @@ void TSP_parallel_pthreads(cities *c, int starting_point,
     individual **next_generation = malloc(population_size * sizeof(individual*));
 	individual **prev_generation = (individual **) malloc(population_size * sizeof(individual*));
 
-	int res_pow = 1, square_length;
-	int count_pow = 0;
-	while (res_pow < population_size) {
-		count_pow++;
-		res_pow = pow(2, count_pow);
-	}
-	square_length = res_pow;
-
 	//create the barrier
 	pthread_barrier_t barrier;
 	int err_barrier = pthread_barrier_init(&barrier, NULL, no_threads);
@@ -255,7 +245,6 @@ void TSP_parallel_pthreads(cities *c, int starting_point,
 		information[i].current_generation = current_generation;
 		information[i].next_generation = next_generation;
 		information[i].prev_generation = prev_generation;
-		information[i].square_length = square_length;
 		information[i].starting_point = starting_point;
 		information[i].c = c;
 		information[i].barrier = &barrier;

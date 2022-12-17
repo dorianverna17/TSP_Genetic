@@ -9,6 +9,7 @@
 #include <string.h>
 
 #define NUM_THREADS 4
+#define NUM_THREADS_HYBRID 2
 #define START_CITY 0
 
 int main(int argc, char **argv) {
@@ -35,8 +36,8 @@ int main(int argc, char **argv) {
         /* 1000 generations, 1000 individuals per generation */
         TSP_parallel_mpi(c, START_CITY, 1000, c->size);
     } else if (strcmp(argv[1], "parallel_mpi_omp") == 0) {
-        TSP_parallel_mpi_omp(c, START_CITY, 1000, c->size, 2);
+        TSP_parallel_mpi_omp(c, START_CITY, 1000, c->size, NUM_THREADS_HYBRID);
     } else if (strcmp(argv[1], "parallel_mpi_pthreads") == 0) {
-        TSP_parallel_mpi_pthreads(c, START_CITY, 1000, c->size, 2);
+        TSP_parallel_mpi_pthreads(c, START_CITY, 1000, c->size, NUM_THREADS_HYBRID);
     }
 }

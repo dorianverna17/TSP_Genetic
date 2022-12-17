@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <math.h>
 #include <omp.h>
+#include <stddef.h>
 
 #define ROOT 0
 
@@ -32,13 +33,10 @@ typedef struct info_thr {
  */
 void compute_generation_fitness_mpi_pthreads(individual *generation, cities *c,
     int start, int population_size, int no_threads) {
-    int cost, start_index, end_index, i, thread_id, j;
+    int cost, start_index, end_index, i, j;
     int *chromosomes;
 
-    start_index = thread_id * (double) population_size / no_threads;
-    end_index = min((thread_id + 1) * (double) population_size / no_threads, population_size);
-
-    for (i = start_index; i < end_index; i++) {
+    for (i = 0; i < population_size; i++) {
 
         cost = 0;
         chromosomes = generation[i].chromosomes;
