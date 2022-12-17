@@ -76,8 +76,8 @@ ruta: 1 -> 2 -> 4 -> 3 -> 1
 - Implementarea paralela este bazata pe paralelizarea implementarii algoritmului genetic (implementare ce a fost prezentata anterior).
 
 - Functiile din bucla de generatii care sunt realizate in paralel sunt urmatoarele:
-	- compute_generation_fitness_openmp - fiecare thread va calcula fitness-ul pentru indivizii care se afla in start si end
-	- mutate_generation_openmp - fiecare thread va face mutatia pe fiecare individ care se afla intre start si end
+	- compute_generation_fitness - fiecare thread va calcula fitness-ul pentru indivizii care se afla in start si end
+	- mutate_generation - fiecare thread va face mutatia pe fiecare individ care se afla intre start si end
 - Thread-ul 0 se va ocupa de sortarea generatiilor si de generarea pozitiilor random care sunt folosite la mutatie
 - Tot ce este generat random, este generat de catre thread-ul 0, deaorece se doreste obtinerea acelorasi rezultate la rularile tuturor variantelor de implementare 
 
