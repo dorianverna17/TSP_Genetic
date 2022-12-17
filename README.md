@@ -110,9 +110,6 @@ de dimensiuni foarte mari. Pentru output-urile de dimensiuni mai mici este o imp
 	- Fiecare worker paralelizeaza cu ajutorul OpenMP calculul fitness-ul fiecarui individ din vectorul sau
 	- Se aduna toti indivizii in vectorul generatie din ROOT
 	- indivizii sunt sortati in ROOT, apoi se fac mutatii in workerul ROOT, cu ajutorul paralelizarii OpenMP
-- Desi foloseste Scatterv, Gatherv, Bcast, Isend si Irecv, aceasta implementare reuseste sa reduca timpul de
-executie al implementarii MPI initiale la jumatate, deoarece folosind si OpenMP se pot reduce din numarul de
-operatii de comunicare intre workeri, reducand din latenta.
 
 ### Hibrid (MPI + Pthreads)
 
@@ -127,7 +124,7 @@ sa aiba acces la toti indivizii din generatia curenta.
 - Am mai incercat un approach in care pastram primii 30% indivizi, apoi facem mutatie pe urmatorii 60%, apoi pe restul in regeneram in totalitate random. Tot pe profiling am descoperita ca se pierdea prea mult timp la apelurile functiei rand(), asa ca am decis sa fac o mutatie similara si pe ultimii indivizi astfel incat sa obtinem rezultate cat mai bune.
 - Profiling am facut cu IntelVTune si cu valgrind, mai multe detalii sunt in directorul profiling
 
-- Timpii sunt mai mari pe implementarile paralele pentru input-uri mici. Aparent, avem un overhead destul de mare legat de pornirea thread-urilor si de sincronizarea acestora. Se obtine speedup doar atunci cand dimensiunea problemei se mareste. Se poate observa in partea de profiling cum timpul de rulare scade in favoarea implementarilor paralele.
+- Timpii sunt mai mari pe implementarile paralele pentru input-uri mici. Aparent, avem un overhead destul de mare legat de pornirea thread-urilor si de sincronizarea acestora. Se obtine speedup doar atunci cand dimensiunea problemei se mareste.
 
 ## Detalii rulare, organizare arhiva
 
@@ -140,6 +137,7 @@ sa aiba acces la toti indivizii din generatia curenta.
 			- parallel_pthreads
 			- parallel_mpi
 			- parallel_mpi_omp
+			- parallel_mpi_pthreads
 		- Fisierul de input reprezinta calea catre fisierul de input
 	- Utilizand scriptul run.sh ("./run.sh"). Acesta executa toate comanda anterioara pentru toate input-urile date si folosind toate variantele de rezolvare
 	- Utilizand regulile de rulare din fisierul Makefile
@@ -151,18 +149,20 @@ sa aiba acces la toti indivizii din generatia curenta.
 	- Makefile - fisierul are o regula de build, una de clean si mai multe reguli de rulare in cazul in care se doreste a fi folosite
 	- run.sh - fisier ce ruleaza toate implementarile pe toate input-urile existente
 	- README.md
-	- Directorul utils - contine doua fisiere helper:
+	- Directorul utils - contine fisiere helper:
 		- genetic_utils.h - contine mai multe functii care sunt folosite de toate variantele de implementare (secvential + paralel)
 		- graph.h - contine definirea structurii care retine configuratia oraselor (o retinem sub forma de matrice), precum si cateva functii pentru citire si printare
+		- mpi/mpi_utils.h - contine functii utilizate in implementarile ce contin MPI (functia care defineste 	
+		structura de date de tip MPI, calculul indexului global si functii de printare)
 	- Directorul sequential - contine urmatoarele implementari secventiale:
 		- implementarea naiva - in directorul naive avem TSP.h
 		- implementarea cu algoritm genetic - in directorul genetic avem TSP.h
 	- Directorul parallel - contine urmatoarele implementari paralele:
 		- openmp - in directorul openmp avem TSP.h
 		- pthreads - in directorul pthreads avem TSP.h
-		- mpi - in directorul mpi avem TSP.h
-		- hibrid (mpi + openmp) - in directorul mpi_omp avem TSP.h
-	- Directorul profiling - contine detalii, screenshot-uri legate de partea de profiling
+		- mpi - in directorul mpi avem TSP_mpi.h
+		- hibrid (mpi + openmp) - in directorul mpi_omp avem TSP_mpi_omp.h
+		- hibrid (mpi + pthreads) - in directorul mpi_pthreads avem TSP_mpi_pthreads.h
 
 ## Feedback tema
 

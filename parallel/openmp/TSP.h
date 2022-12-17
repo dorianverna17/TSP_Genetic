@@ -212,7 +212,7 @@ void TSP_parallel_openmp(cities *c, int starting_point,
 	qsort(current_generation, population_size,
         sizeof(individual*), compare_individuals);
 
-    printf("Total execution time = %lf\n", t2 - t1);
+    printf("Total execution time for OpenMP = %lf\n", t2 - t1);
 
     print_result_individual(current_generation, c);
 }

@@ -362,7 +362,7 @@ void TSP_parallel_mpi(cities *c, int starting_point, int generations_no, int pop
             sizeof(individual), compare_individuals_mpi);
         
         t2 = MPI_Wtime();
-        printf("Total execution time = %lf\n", t2 - t1);
+        printf("Total execution time for MPI = %lf\n", t2 - t1);
         print_result_individual_mpi(current_generation, c);
     }
     

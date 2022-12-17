@@ -278,7 +278,7 @@ void TSP_parallel_pthreads(cities *c, int starting_point,
 
 	t2 = omp_get_wtime();
 
-	printf("Total execution time = %lf\n", t2 - t1);
+	printf("Total execution time for Pthreads = %lf\n", t2 - t1);
 
     print_result_individual(current_generation, c);
 }

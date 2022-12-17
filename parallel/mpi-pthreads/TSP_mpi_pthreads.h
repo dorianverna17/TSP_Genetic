@@ -86,7 +86,7 @@ void pthreads_mutate(info_thr *information) {
 	cities *c = information->c;
     individual *current_generation = information->current_generation;
 	individual *next_generation = information->next_generation;
-    
+
     int current_index, aux, i, j;
 
     int count_best = (population_size * 3) / 10;
@@ -364,7 +364,7 @@ void TSP_parallel_mpi_pthreads(cities *c, int starting_point, int generations_no
             sizeof(individual), compare_individuals_mpi);
         
         t2 = omp_get_wtime();
-        printf("Total execution time = %lf\n", t2 - t1);
+        printf("Total execution time for MPI + Pthreads = %lf\n", t2 - t1);
         print_result_individual_mpi(current_generation, c);
     }
     
